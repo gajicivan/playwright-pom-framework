@@ -4,25 +4,23 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       suite:
         description: 'Suite to run'
-        required: false
-        default: 'smoke'
         type: choice
         options: [smoke, regression, all]
+        default: smoke
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
-    name: ${{ matrix.project }}
+    name: test (${{ matrix.project }})
     timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
@@ -38,8 +36,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -47,8 +44,18 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      - name: Install Playwright browser (${{ matrix.project }})
-        run: npx playwright install --with-deps ${{ matrix.project }}
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Pick suite
+        id: pick
+        run: |
+          # Default: PR -> smoke, push/schedule -> smoke (stable), manual -> user choice
+          SUITE="smoke"
+          if [ "${{ github.event_name }}" = "schedule" ]; then SUITE="all"; fi
+          if [ -n "${{ github.event.inputs.suite }}" ]; then SUITE="${{ github.event.inputs.suite }}"; fi
+          echo "value=$SUITE" >> "$GITHUB_OUTPUT"
+          echo "Running suite: $SUITE"
 
       - name: Run tests
         env:
@@ -56,21 +63,27 @@ jobs:
           ADMIN_USERNAME: ${{ vars.ADMIN_USERNAME || 'Admin' }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'admin123' }}
         run: |
-          SUITE="${{ github.event.inputs.suite }}"
-          if [ "${{ github.event_name }}" = "schedule" ]; then SUITE="smoke"; fi
-          case "$SUITE" in
-            regression) npx playwright test --project=${{ matrix.project }} --grep @regression ;;
+          case "${{ steps.pick.outputs.value }}" in
             smoke)      npx playwright test --project=${{ matrix.project }} --grep @smoke ;;
+            regression) npx playwright test --project=${{ matrix.project }} --grep @regression ;;
             *)          npx playwright test --project=${{ matrix.project }} ;;
           esac
 
-      - name: Upload HTML report
-        if: always()
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.project }}
-          path: playwright-report/
-          retention-days: 14
+          name: blob-report-${{ matrix.project }}
+          path: blob-report
+          retention-days: 7
+
+      - name: Upload JSON results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.project }}
+          path: results.json
+          retention-days: 7
 
       - name: Upload traces & screenshots on failure
         if: failure()
@@ -79,3 +92,129 @@ jobs:
           name: test-results-${{ matrix.project }}
           path: test-results/
           retention-days: 7
+
+  merge-reports:
+    name: merge HTML report
+    if: ${{ !cancelled() }}
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Merge into HTML report
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-report--${{ github.run_id }}
+          path: playwright-report
+          retention-days: 14
+
+  deploy-report:
+    name: deploy report to Pages
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    needs: merge-reports
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download merged HTML report
+        uses: actions/download-artifact@v4
+        with:
+          name: html-report--${{ github.run_id }}
+          path: playwright-report
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  pr-comment:
+    name: comment results on PR
+    if: github.event_name == 'pull_request' && !cancelled()
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Download JSON results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-results
+          pattern: results-*
+          merge-multiple: false
+
+      - name: Build comment
+        id: build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const root = 'all-results';
+            const dirs = fs.readdirSync(root).filter((d) =>
+              fs.statSync(path.join(root, d)).isDirectory(),
+            );
+            let total = 0, passed = 0, failed = 0, flaky = 0, skipped = 0;
+            const perProject = [];
+            for (const dir of dirs) {
+              const project = dir.replace(/^results-/, '');
+              const file = path.join(root, dir, 'results.json');
+              if (!fs.existsSync(file)) continue;
+              const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+              const s = json.stats || {};
+              const p = s.expected || 0;
+              const f = s.unexpected || 0;
+              const fk = s.flaky || 0;
+              const sk = s.skipped || 0;
+              total += p + f + fk + sk;
+              passed += p; failed += f; flaky += fk; skipped += sk;
+              const badge = f > 0 ? ':x:' : ':white_check_mark:';
+              perProject.push(`| ${badge} | \`${project}\` | ${p} | ${f} | ${fk} | ${sk} |`);
+            }
+            const overall = failed > 0 ? ':x: failing' : ':white_check_mark: passing';
+            const body = [
+              `### Playwright results: ${overall}`,
+              ``,
+              `**${passed} passed**, **${failed} failed**, **${flaky} flaky**, **${skipped} skipped** (total ${total})`,
+              ``,
+              `| | Browser | Passed | Failed | Flaky | Skipped |`,
+              `|---|---|---:|---:|---:|---:|`,
+              ...perProject,
+              ``,
+              `[View full HTML report in workflow artifacts](${process.env.RUN_URL})`,
+            ].join('\n');
+            core.setOutput('body', body);
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Post or update PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: playwright-results
+          message: ${{ steps.build.outputs.body }}
