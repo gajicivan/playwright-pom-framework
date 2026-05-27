@@ -18,7 +18,7 @@ export class UserManagementPage extends BasePage {
     this.resetButton = page.getByRole('button', { name: 'Reset' });
     this.tableRows = page.locator('.oxd-table-card');
     this.noRecords = page.locator('span.oxd-text--span', { hasText: 'No Records Found' });
-    this.confirmDeleteButton = page.getByRole('button', { name: /yes, delete/i });
+    this.confirmDeleteButton = page.getByRole('button', { name: 'Yes, Delete' });
   }
 
   async searchByUsername(username: string): Promise<void> {
@@ -33,7 +33,7 @@ export class UserManagementPage extends BasePage {
 
   async deleteUser(username: string): Promise<void> {
     const row = this.rowByUsername(username);
-    await row.locator('button.oxd-icon-button').last().click();
+    await row.locator('button:has(.bi-trash)').click();
     await this.confirmDeleteButton.click();
     await this.page.waitForLoadState('networkidle');
   }

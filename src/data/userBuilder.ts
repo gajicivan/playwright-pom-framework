@@ -5,7 +5,7 @@ export function aNewUser(overrides: Partial<NewUserInput> = {}): NewUserInput {
   const suffix = uniqueSuffix();
   return {
     userRole: 'ESS',
-    employeeName: 'a',
+    employeeName: 'Pa',
     status: 'Enabled',
     username: `qa_user_${suffix}`,
     password: 'P@ssword123!',

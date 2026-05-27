@@ -104,6 +104,29 @@ npx playwright test tests/regression/admin-users.spec.ts
 - Uploads HTML report as an artifact (always), traces + videos (on failure)
 - Reads credentials from repo `vars` / `secrets`
 
+## Environments
+
+The framework is environment-agnostic. The only thing that changes between environments is `.env`:
+
+```bash
+# dev (local Docker, if you spin one up)
+BASE_URL=http://localhost:8080
+ADMIN_USERNAME=Admin
+ADMIN_PASSWORD=admin123
+
+# staging / preprod
+BASE_URL=https://staging.example.com
+ADMIN_USERNAME=qa_admin
+ADMIN_PASSWORD=…  # in CI, comes from secrets
+
+# public demo (default)
+BASE_URL=https://opensource-demo.orangehrmlive.com
+```
+
+`src/config/env.ts` is the single source of truth — every page object and fixture reads from it. To target a local Docker instance, you'd add a `docker-compose.yml` for OrangeHRM (`orangehrm/orangehrm:latest` image + MariaDB), set `BASE_URL=http://localhost:8080`, and the entire suite runs unchanged.
+
+In CI, `BASE_URL` and `ADMIN_USERNAME` come from repo variables, `ADMIN_PASSWORD` from secrets — so production credentials never live in code.
+
 ## Notes on the test target
 
-OrangeHRM's demo resets every 24 hours, so any data created during a regression run disappears the next day — perfect for automated tests. The full-lifecycle test still cleans up after itself so reruns on the same day stay green.
+The public OrangeHRM demo resets every 24 hours, so any data created during a regression run disappears the next day — perfect for automated tests. The full-lifecycle test still cleans up after itself so reruns on the same day stay green.
