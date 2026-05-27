@@ -44,9 +44,15 @@ export class AddUserPage extends BasePage {
       .filter({ has: this.page.locator('label', { hasText: /employee name/i }) })
       .locator('input');
     await input.fill(query);
-    await this.page
-      .getByRole('option', { name: new RegExp(query, 'i') })
-      .first()
-      .click();
+
+    const searching = this.page.getByRole('option', { name: 'Searching....' });
+    await searching.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+    await searching.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
+
+    const firstResult = this.page
+      .locator('[role="listbox"] [role="option"]')
+      .filter({ hasNotText: /searching/i })
+      .first();
+    await firstResult.click();
   }
 }
