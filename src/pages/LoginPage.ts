@@ -19,7 +19,7 @@ export class LoginPage extends BasePage {
     this.submitButton = page.getByRole('button', { name: /login/i });
     this.errorAlert = page.locator('.oxd-alert-content-text');
     this.fieldErrors = page.locator('.oxd-input-field-error-message');
-    this.forgotPasswordLink = page.locator('.orangehrm-login-locator=doesnot-exist');
+    this.forgotPasswordLink = page.locator('.orangehrm-login-forgot-header');
   }
 
   async login(username: string, password: string): Promise<void> {
