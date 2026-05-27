@@ -1,5 +1,8 @@
 # OTRS E2E — Playwright + TypeScript (Page Object Model)
 
+[![Playwright](https://github.com/gajicivan/playwright-pom-framework/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/gajicivan/playwright-pom-framework/actions/workflows/playwright.yml)
+[![Test report](https://img.shields.io/badge/report-live-blue)](https://gajicivan.github.io/playwright-pom-framework/)
+
 End-to-end automation framework written as a portfolio piece, structured to mirror how I would cover an internal business application like OTRS.
 
 The framework runs against [OrangeHRM's public demo](https://opensource-demo.orangehrmlive.com/) — a real-world HR system chosen because it has the same feel as an OTRS-style app: login, multiple modules, side navigation, forms, search, paginated tables.
@@ -94,15 +97,29 @@ npx playwright test tests/regression/admin-users.spec.ts
 
 **Cross-browser via projects.** Each authenticated browser project depends on `setup`, so the matrix is `setup × {chromium, firefox, webkit}` with the dependency graph handled by Playwright.
 
-## CI
+## CI / CD
 
-`.github/workflows/playwright.yml`:
+`.github/workflows/playwright.yml` is a four-stage pipeline:
 
-- Triggers: push to `main`, PRs, daily 06:00 UTC smoke, manual dispatch with suite selector
-- Cross-browser matrix (chromium / firefox / webkit) with `fail-fast: false`
-- Caches Playwright browsers between runs
-- Uploads HTML report as an artifact (always), traces + videos (on failure)
-- Reads credentials from repo `vars` / `secrets`
+1. **`test`** — cross-browser matrix (chromium / firefox / webkit) with `fail-fast: false`. Each job runs the selected suite, uploads a [Playwright blob report](https://playwright.dev/docs/test-reporters#blob-reporter) and JSON results as artifacts. Traces + videos uploaded on failure.
+2. **`merge-reports`** — collects all blob reports and merges them into one HTML report covering every browser. Uploaded as a single `html-report--<run_id>` artifact.
+3. **`deploy-report`** — on main / schedule / manual dispatch, deploys the merged HTML report to GitHub Pages so anyone can browse [the live report](https://gajicivan.github.io/playwright-pom-framework/) (traces, videos, screenshots included).
+4. **`pr-comment`** — on pull requests, posts (or updates) a sticky comment with pass/fail counts per browser, linking to the workflow run.
+
+**Trigger rules:**
+
+| Event | Suite |
+|---|---|
+| Pull request | `@smoke` only (fast feedback, ~1 min/browser) |
+| Push to `main` | `@smoke` (stable signal) |
+| Daily 06:00 UTC | full suite (smoke + regression) |
+| Manual dispatch | user-selected (smoke / regression / all) |
+
+**Operational details:**
+- Concurrency: PRs cancel in-flight runs on new commits; main is never cancelled.
+- Playwright browsers cached between runs (`~/.cache/ms-playwright`).
+- Credentials read from repo `vars` (BASE_URL, ADMIN_USERNAME) and `secrets` (ADMIN_PASSWORD).
+- HTML report deployment uses the native GitHub Pages action (no `gh-pages` branch).
 
 ## Environments
 

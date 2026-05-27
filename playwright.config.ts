@@ -14,7 +14,13 @@ export default defineConfig({
   expect: { timeout: 10_000 },
 
   reporter: env.isCI
-    ? [['github'], ['html', { open: 'never' }], ['list'], ['junit', { outputFile: 'test-results/junit.xml' }]]
+    ? [
+        ['blob'],
+        ['json', { outputFile: 'results.json' }],
+        ['junit', { outputFile: 'test-results/junit.xml' }],
+        ['github'],
+        ['list'],
+      ]
     : [['html', { open: 'on-failure' }], ['list']],
 
   use: {
