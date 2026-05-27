@@ -38,4 +38,14 @@ test.describe('Login @smoke', () => {
     await dashboardPage.topBar.logout();
     await expect(loginPage.usernameInput).toBeVisible();
   });
+
+  test('forgot password link is visible and navigates to reset flow', async ({
+  loginPage,
+  page,
+}) => {
+  await expect(loginPage.forgotPasswordLink).toBeVisible();
+  await loginPage.forgotPasswordLink.click();
+  await expect(page).toHaveURL(/requestPasswordResetCode/);
+});
+
 });
