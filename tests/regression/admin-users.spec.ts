@@ -33,16 +33,16 @@ test.describe('Admin > User Management @regression', () => {
     await expect(userManagementPage.noRecords).toBeVisible();
   });
 
-    test('cancel on add user form returns to the user list without saving', async ({
-      userManagementPage,
-      addUserPage,
-      page,
-    }) => {
-      await userManagementPage.goto();
-      await userManagementPage.addButton.click();
-      await expect(page).toHaveURL(/\/admin\/saveSystemUser/);
+  test('cancel on add user form returns to the user list without saving', async ({
+    userManagementPage,
+    addUserPage,
+    page,
+  }) => {
+    await userManagementPage.goto();
+    await userManagementPage.addButton.click();
+    await expect(page).toHaveURL(/\/admin\/saveSystemUser/);
 
-      await addUserPage.cancelButton.click();
-      await expect(page).toHaveURL(/\/admin\/viewSystemUsers/);
-    });
+    await addUserPage.cancelButton.click();
+    await expect(page).toHaveURL(/\/admin\/viewSystemUsers/);
+  });
 });
