@@ -9,12 +9,13 @@ The framework runs against [OrangeHRM's public demo](https://opensource-demo.ora
 
 ## Stack
 
-- **Playwright** with TypeScript
+- **Playwright** with TypeScript — UI + API testing in one framework
 - **Page Object Model** with reusable component objects (TopBar, SideMenu)
 - **Test fixtures** that inject page objects into specs
 - **Data builders** for unique, isolated test data
 - **Storage state** auth — login runs once per browser, reused by every authenticated spec
-- **GitHub Actions** CI with cross-browser matrix (Chromium / Firefox / WebKit)
+- **K6** for load testing (separate layer — performance under load)
+- **GitHub Actions** CI with cross-browser matrix (Chromium / Firefox / WebKit) + parallel API job
 
 ## Project structure
 
@@ -120,6 +121,19 @@ npx playwright test tests/regression/admin-users.spec.ts
 - Playwright browsers cached between runs (`~/.cache/ms-playwright`).
 - Credentials read from repo `vars` (BASE_URL, ADMIN_USERNAME) and `secrets` (ADMIN_PASSWORD).
 - HTML report deployment uses the native GitHub Pages action (no `gh-pages` branch).
+
+## Load testing (K6)
+
+Functional tests verify *"does it work?"*. Load tests verify *"does it survive 500 users?"* — different concern, different tool.
+
+See [`k6/`](k6/) for smoke, load, and stress scripts written in K6. Run any of them with:
+
+```bash
+brew install k6
+k6 run k6/smoke.js
+```
+
+Scripts use thresholds as pass/fail contracts (e.g. `p(95) < 500ms`, `error rate < 1%`) so failed thresholds break CI like any other test. See [`k6/README.md`](k6/README.md) for detailed walkthrough.
 
 ## Environments
 
