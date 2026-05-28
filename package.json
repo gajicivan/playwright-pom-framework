@@ -1,7 +1,7 @@
 {
-  "name": "otrs-e2e",
+  "name": "playwright-pom-framework",
   "version": "1.0.0",
-  "description": "Playwright + TypeScript E2E automation framework (Page Object Model). Demo target: OrangeHRM, structured to mirror coverage of an OTRS-like business application.",
+  "description": "Playwright + TypeScript E2E and API automation framework with Page Object Model. Demo target: OrangeHRM open-source HR app.",
   "private": true,
   "scripts": {
     "test": "playwright test",

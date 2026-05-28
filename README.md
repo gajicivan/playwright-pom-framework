@@ -1,11 +1,11 @@
-# OTRS E2E — Playwright + TypeScript (Page Object Model)
+# Playwright POM Framework — E2E + API Testing
 
 [![Playwright](https://github.com/gajicivan/playwright-pom-framework/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/gajicivan/playwright-pom-framework/actions/workflows/playwright.yml)
 [![Test report](https://img.shields.io/badge/report-live-blue)](https://gajicivan.github.io/playwright-pom-framework/)
 
-End-to-end automation framework written as a portfolio piece, structured to mirror how I would cover an internal business application like OTRS.
+End-to-end automation framework written as a portfolio piece, structured to mirror how I would cover a real internal business application.
 
-The framework runs against [OrangeHRM's public demo](https://opensource-demo.orangehrmlive.com/) — a real-world HR system chosen because it has the same feel as an OTRS-style app: login, multiple modules, side navigation, forms, search, paginated tables.
+The framework runs against [OrangeHRM's public demo](https://opensource-demo.orangehrmlive.com/) — a full-featured open-source HR system chosen because it represents a real-world business app: login, multiple modules, side navigation, forms, search, paginated tables.
 
 ## Stack
 
