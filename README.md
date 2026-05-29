@@ -161,3 +161,4 @@ In CI, `BASE_URL` and `ADMIN_USERNAME` come from repo variables, `ADMIN_PASSWORD
 ## Notes on the test target
 
 The public OrangeHRM demo resets every 24 hours, so any data created during a regression run disappears the next day — perfect for automated tests. The full-lifecycle test still cleans up after itself so reruns on the same day stay green.
+
